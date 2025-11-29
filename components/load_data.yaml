@@ -1,0 +1,44 @@
+name: Load data
+outputs:
+- {name: data, type: String}
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' 'scikit-learn' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install
+      --quiet --no-warn-script-location 'pandas' 'scikit-learn' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - |
+      def _make_parent_dirs_and_return_path(file_path: str):
+          import os
+          os.makedirs(os.path.dirname(file_path), exist_ok=True)
+          return file_path
+
+      def load_data(data_path ):
+          import pandas as pd
+          from sklearn.datasets import fetch_california_housing
+
+          print("Loading data...")
+          data = fetch_california_housing()
+          df = pd.DataFrame(data.data, columns=data.feature_names)
+          df['target'] = data.target
+
+          df.to_csv(data_path, index=False)
+
+      import argparse
+      _parser = argparse.ArgumentParser(prog='Load data', description='')
+      _parser.add_argument("--data", dest="data_path", type=_make_parent_dirs_and_return_path, required=True, default=argparse.SUPPRESS)
+      _parsed_args = vars(_parser.parse_args())
+
+      _outputs = load_data(**_parsed_args)
+    args:
+    - --data
+    - {outputPath: data}

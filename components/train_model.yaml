@@ -1,0 +1,39 @@
+name: Train model
+inputs:
+- {name: train_data, type: String}
+outputs:
+- {name: model, type: String}
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' 'scikit-learn' 'joblib' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3
+      -m pip install --quiet --no-warn-script-location 'pandas' 'scikit-learn' 'joblib'
+      --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n   \
+      \ os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+      \ndef train_model(train_data_path , \n                model_path ):\n    import\
+      \ pandas as pd\n    from sklearn.ensemble import RandomForestRegressor\n   \
+      \ import joblib\n\n    print(\"Training model...\")\n    df = pd.read_csv(train_data_path)\n\
+      \    X_train = df.drop('target', axis=1)\n    y_train = df['target']\n\n   \
+      \ model = RandomForestRegressor(n_estimators=100, random_state=42)\n    model.fit(X_train,\
+      \ y_train)\n\n    joblib.dump(model, model_path)\n\nimport argparse\n_parser\
+      \ = argparse.ArgumentParser(prog='Train model', description='')\n_parser.add_argument(\"\
+      --train-data\", dest=\"train_data_path\", type=str, required=True, default=argparse.SUPPRESS)\n\
+      _parser.add_argument(\"--model\", dest=\"model_path\", type=_make_parent_dirs_and_return_path,\
+      \ required=True, default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\
+      \n_outputs = train_model(**_parsed_args)\n"
+    args:
+    - --train-data
+    - {inputPath: train_data}
+    - --model
+    - {outputPath: model}

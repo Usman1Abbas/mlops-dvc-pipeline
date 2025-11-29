@@ -1,0 +1,49 @@
+name: Preprocess data
+inputs:
+- {name: input_data, type: String}
+outputs:
+- {name: train_data, type: String}
+- {name: test_data, type: String}
+implementation:
+  container:
+    image: python:3.9
+    command:
+    - sh
+    - -c
+    - (PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install --quiet --no-warn-script-location
+      'pandas' 'scikit-learn' || PIP_DISABLE_PIP_VERSION_CHECK=1 python3 -m pip install
+      --quiet --no-warn-script-location 'pandas' 'scikit-learn' --user) && "$0" "$@"
+    - sh
+    - -ec
+    - |
+      program_path=$(mktemp)
+      printf "%s" "$0" > "$program_path"
+      python3 -u "$program_path" "$@"
+    - "def _make_parent_dirs_and_return_path(file_path: str):\n    import os\n   \
+      \ os.makedirs(os.path.dirname(file_path), exist_ok=True)\n    return file_path\n\
+      \ndef preprocess_data(input_data_path , \n                    train_data_path\
+      \ , \n                    test_data_path ):\n    import pandas as pd\n    from\
+      \ sklearn.model_selection import train_test_split\n    from sklearn.preprocessing\
+      \ import StandardScaler\n\n    print(\"Preprocessing data...\")\n    df = pd.read_csv(input_data_path)\n\
+      \n    X = df.drop('target', axis=1)\n    y = df['target']\n\n    X_train, X_test,\
+      \ y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)\n\
+      \n    scaler = StandardScaler()\n    X_train_scaled = scaler.fit_transform(X_train)\n\
+      \    X_test_scaled = scaler.transform(X_test)\n\n    train_df = pd.DataFrame(X_train_scaled,\
+      \ columns=X.columns)\n    train_df['target'] = y_train.values\n\n    test_df\
+      \ = pd.DataFrame(X_test_scaled, columns=X.columns)\n    test_df['target'] =\
+      \ y_test.values\n\n    train_df.to_csv(train_data_path, index=False)\n    test_df.to_csv(test_data_path,\
+      \ index=False)\n\nimport argparse\n_parser = argparse.ArgumentParser(prog='Preprocess\
+      \ data', description='')\n_parser.add_argument(\"--input-data\", dest=\"input_data_path\"\
+      , type=str, required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"\
+      --train-data\", dest=\"train_data_path\", type=_make_parent_dirs_and_return_path,\
+      \ required=True, default=argparse.SUPPRESS)\n_parser.add_argument(\"--test-data\"\
+      , dest=\"test_data_path\", type=_make_parent_dirs_and_return_path, required=True,\
+      \ default=argparse.SUPPRESS)\n_parsed_args = vars(_parser.parse_args())\n\n\
+      _outputs = preprocess_data(**_parsed_args)\n"
+    args:
+    - --input-data
+    - {inputPath: input_data}
+    - --train-data
+    - {outputPath: train_data}
+    - --test-data
+    - {outputPath: test_data}
